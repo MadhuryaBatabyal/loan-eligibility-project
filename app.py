@@ -1,6 +1,4 @@
-import os
 import sqlite3
-import numpy as np
 import pandas as pd
 import streamlit as st
 
@@ -9,9 +7,13 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score
 
-st.set_page_config(page_title="Loan Eligibility Prediction System", page_icon="🏦", layout="wide")
+st.set_page_config(
+    page_title="Loan Eligibility Prediction System",
+    page_icon="🏦",
+    layout="wide"
+)
 
-DATA_FILE = "data/loan_data.csv"
+DATA_FILE = "Loan-Eligibility-Prediction.csv"
 DB_FILE = "loan_eligibility.db"
 
 
@@ -70,54 +72,40 @@ def load_saved_applications():
 
 
 # -----------------------------
-# DATA
+# LOAD DATA
 # -----------------------------
 @st.cache_data
 def load_data():
-    if os.path.exists(DATA_FILE):
-        return pd.read_csv(DATA_FILE)
-    else:
-        np.random.seed(42)
-        n = 500
-        df = pd.DataFrame({
-            "Gender": np.random.choice(["Male", "Female"], n),
-            "Married": np.random.choice(["Yes", "No"], n),
-            "Dependents": np.random.choice(["0", "1", "2", "3+"], n),
-            "Education": np.random.choice(["Graduate", "Not Graduate"], n),
-            "Self_Employed": np.random.choice(["Yes", "No"], n),
-            "ApplicantIncome": np.random.randint(1500, 25000, n),
-            "CoapplicantIncome": np.random.randint(0, 10000, n),
-            "LoanAmount": np.random.randint(50, 400, n),
-            "Loan_Amount_Term": np.random.choice([120, 180, 240, 300, 360], n),
-            "Credit_History": np.random.choice([1.0, 0.0], n, p=[0.8, 0.2]),
-            "Property_Area": np.random.choice(["Urban", "Semiurban", "Rural"], n),
-        })
+    df = pd.read_csv(DATA_FILE)
 
-        score = (
-            0.00008 * df["ApplicantIncome"] +
-            0.00005 * df["CoapplicantIncome"] -
-            0.002 * df["LoanAmount"] +
-            0.55 * df["Credit_History"] +
-            np.where(df["Education"] == "Graduate", 0.10, 0.0) +
-            np.where(df["Married"] == "Yes", 0.05, 0.0) +
-            np.where(df["Property_Area"] == "Semiurban", 0.08, 0.0)
-        )
+    df.columns = df.columns.str.strip()
 
-        df["Loan_Status"] = np.where(score > 0.55, "Y", "N")
-        return df
+    df = df.dropna()
+
+    if "Customer_ID" in df.columns:
+        df = df.drop("Customer_ID", axis=1)
+
+    return df
 
 
 # -----------------------------
-# MODEL
+# TRAIN MODEL
 # -----------------------------
 @st.cache_resource
 def train_model(df):
     model_df = df.copy()
 
     encoders = {}
-    cat_cols = ["Gender", "Married", "Dependents", "Education", "Self_Employed", "Property_Area"]
+    categorical_cols = [
+        "Gender",
+        "Married",
+        "Dependents",
+        "Education",
+        "Self_Employed",
+        "Property_Area"
+    ]
 
-    for col in cat_cols:
+    for col in categorical_cols:
         le = LabelEncoder()
         model_df[col] = le.fit_transform(model_df[col])
         encoders[col] = le
@@ -176,17 +164,17 @@ with tab1:
 
     st.subheader("Problem Statement")
     st.write("""
-    Banks receive many loan applications and need a fast, consistent method
-    to identify eligible applicants. This system helps automate the evaluation
-    process using historical applicant data.
+    Banks receive many loan applications and need a quick and consistent
+    way to identify eligible applicants. This project uses machine learning
+    to support loan approval decisions.
     """)
 
     st.subheader("Technologies Used")
     st.write("""
     - Streamlit for frontend
-    - Pandas and NumPy for data handling
-    - Scikit-learn for machine learning
-    - SQLite for application record storage
+    - Pandas for data processing
+    - Scikit-learn for model building
+    - SQLite for storing prediction records
     """)
 
 # -----------------------------
@@ -196,25 +184,18 @@ with tab2:
     st.subheader("Dataset Preview")
     st.dataframe(df.head(20), use_container_width=True)
 
-    st.subheader("Dataset Shape")
-    st.write(df.shape)
+    st.subheader("Loan Status Distribution")
+    st.bar_chart(df["Loan_Status"].value_counts())
 
-    col1, col2 = st.columns(2)
+    st.subheader("Credit History Distribution")
+    st.bar_chart(df["Credit_History"].value_counts())
 
-    with col1:
-        st.subheader("Loan Status Distribution")
-        st.bar_chart(df["Loan_Status"].value_counts())
+    st.subheader("Property Area Distribution")
+    st.bar_chart(df["Property_Area"].value_counts())
 
-    with col2:
-        st.subheader("Credit History Distribution")
-        st.bar_chart(df["Credit_History"].value_counts())
-
-    st.subheader("Applicant Income Distribution")
-    st.bar_chart(df["ApplicantIncome"])
-
-    st.subheader("Loan Amount vs Applicant Income")
-    scatter_df = df[["ApplicantIncome", "LoanAmount"]]
-    st.scatter_chart(scatter_df)
+    st.subheader("Applicant Income vs Loan Amount")
+    chart_df = df[["Applicant_Income", "Loan_Amount"]]
+    st.scatter_chart(chart_df)
 
 # -----------------------------
 # PREDICTION
@@ -223,17 +204,17 @@ with tab3:
     st.subheader("Check Loan Eligibility")
 
     with st.form("loan_form"):
-        gender = st.selectbox("Gender", ["Male", "Female"])
-        married = st.selectbox("Married", ["Yes", "No"])
-        dependents = st.selectbox("Dependents", ["0", "1", "2", "3+"])
-        education = st.selectbox("Education", ["Graduate", "Not Graduate"])
-        self_employed = st.selectbox("Self Employed", ["Yes", "No"])
+        gender = st.selectbox("Gender", sorted(df["Gender"].unique()))
+        married = st.selectbox("Married", sorted(df["Married"].unique()))
+        dependents = st.selectbox("Dependents", sorted(df["Dependents"].unique()))
+        education = st.selectbox("Education", sorted(df["Education"].unique()))
+        self_employed = st.selectbox("Self Employed", sorted(df["Self_Employed"].unique()))
         applicant_income = st.number_input("Applicant Income", min_value=0.0, value=5000.0, step=500.0)
         coapplicant_income = st.number_input("Coapplicant Income", min_value=0.0, value=1500.0, step=500.0)
         loan_amount = st.number_input("Loan Amount", min_value=0.0, value=120.0, step=10.0)
-        loan_amount_term = st.selectbox("Loan Amount Term", [120, 180, 240, 300, 360])
-        credit_history = st.selectbox("Credit History", [1.0, 0.0])
-        property_area = st.selectbox("Property Area", ["Urban", "Semiurban", "Rural"])
+        loan_amount_term = st.number_input("Loan Amount Term", min_value=0.0, value=360.0, step=12.0)
+        credit_history = st.selectbox("Credit History", sorted(df["Credit_History"].unique()))
+        property_area = st.selectbox("Property Area", sorted(df["Property_Area"].unique()))
 
         submitted = st.form_submit_button("Predict Loan Status")
 
@@ -244,9 +225,9 @@ with tab3:
             "Dependents": dependents,
             "Education": education,
             "Self_Employed": self_employed,
-            "ApplicantIncome": applicant_income,
-            "CoapplicantIncome": coapplicant_income,
-            "LoanAmount": loan_amount,
+            "Applicant_Income": applicant_income,
+            "Coapplicant_Income": coapplicant_income,
+            "Loan_Amount": loan_amount,
             "Loan_Amount_Term": loan_amount_term,
             "Credit_History": credit_history,
             "Property_Area": property_area
@@ -271,7 +252,7 @@ with tab3:
             loan_amount_term, credit_history, property_area, final_result
         )
 
-        st.info("Application record saved to SQLite database.")
+        st.info("Application record saved to database.")
 
 # -----------------------------
 # SAVED APPLICATIONS

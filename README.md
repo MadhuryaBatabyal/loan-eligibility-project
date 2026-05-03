@@ -65,7 +65,6 @@ streamlit run app.py
 loan-eligibility-project/
 ├── app.py
 ├── requirements.txt
-├── loan_eligibility.db
 ├── README.md
 └── data/
     └── Loan-Eligibility-Prediction.csv

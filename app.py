@@ -228,7 +228,7 @@ with tab3:
     with st.form("loan_form"):
         gender = st.selectbox("Gender", sorted(df["Gender"].dropna().astype(str).unique()))
         married = st.selectbox("Married", sorted(df["Married"].dropna().astype(str).unique()))
-        dependents = st.selectbox("Dependents", sorted(df["Dependents"].dropna().astype(str).unique()))
+        dependents_display = st.selectbox("Dependents", ["0", "1", "2", "3+"])
         education = st.selectbox("Education", sorted(df["Education"].dropna().astype(str).unique()))
         self_employed = st.selectbox("Self Employed", sorted(df["Self_Employed"].dropna().astype(str).unique()))
 
